@@ -45,7 +45,8 @@ onServerPrefetch(async() => {
       <h2>Chapter {{ chapter1 }}</h2>
       <p>Voici du texte</p>
       <!-- <img src="@/assets/images/img1.jpg" alt="img1" /> -->
-      <img src="http://localhost:5173/images/img1.jpg" alt="img1" />
+      <img src="/images/img1.jpg" alt="img1" />
+      <img src  =   "  /images/img1.jpg" alt="img1" />
       <br>
       <img src="https://fastly.picsum.photos/id/140/536/354.jpg?hmac=6DR6dNVwKNG_j1OeVto6gRHHfkxwnE5JEtDaWl6qkDg" alt="img2" />
     </section>

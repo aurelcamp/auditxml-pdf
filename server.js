@@ -39,54 +39,39 @@ async function createServer() {
 
   const toAbsolute = (p) => path.resolve(__dirname, p)
 
+  const toPublicUrl = (url) => url.replace('static\\', '');
+
   const manifest = JSON.parse(
     fs.readFileSync(toAbsolute('dist/client/.vite/ssr-manifest.json'), 'utf-8'),
   )
 
   app.post('/generate-pdf', [vite.middlewares, upload.single('xmlAudit')], async (req, res) => {
-    const regexCss = /<link rel=\"stylesheet\"(.*?)>/g
-
-    // let indexHtml = fs.readFileSync(toAbsolute('dist/client/index.html'), 'utf-8')
-    // const regexHref = /href=\"(.*?)"\>/g
-    // indexHtml = indexHtml.replace(regexHref, 'href="./dist/client$1"')
-    // const regexSrc = /src=\"(.*?)"\>/g
-    // indexHtml = indexHtml.replace(regexSrc, 'src="./dist/client$1"')
-
-
-    const indexHtml = fs.readFileSync(toAbsolute('dist/client/index.html'), 'utf-8')
-    const cssLine = indexHtml.match(regexCss)[0]
-    const regexHref = /href=\"(.*?)"\>/g
-    const cssLink = cssLine.replace(regexHref, 'href="./dist/client$1"')
-
     const { render } = await vite.ssrLoadModule('/src/entry-server.js');
-    const publicXMLPath = req.file.path.replace('static\\', '');
-    const  appHtml = await render(`http://localhost:${port}/${publicXMLPath}`, manifest);
-    // console.log(preloadLinks);
-    // console.log(appHtml.html);
+    const appHtml = await render(`http://localhost:${port}/${toPublicUrl(req.file.path)}`, manifest);
+
+    appHtml.html = appHtml.html.replace(/src[ ]*=[ ]*"[ ]*(\/images\/.*?)"/g, 'src="./dist/client$1"')
+    
     const htmlFileName = `data-${uniqueSuffix()}.html`
-    const htmlFilePath = `${__dirname}/${htmlFileName}`;
-    let html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>PDF audit</title>
-        ${cssLink}
-      </head>
-      <body>
-        ${appHtml.html}
-      </body>
-    </html>
-    `
-    // console.log(html)
+    const htmlFilePath = `${htmlFileName}`
+    
+    let indexHtml = fs.readFileSync(toAbsolute('dist/client/index.html'), 'utf-8')
+    
+    const regexHref = /href=\"(.*?)"\>/g
+    indexHtml = indexHtml.replace(regexHref, 'href="./dist/client$1">')
+    // remove useless js
+    indexHtml = indexHtml.replace(/<script type="module" (.*?)\><\/script>/g, '')
+
+    indexHtml = indexHtml.replace(`<!--main-app-->`, appHtml.html);
     
     try {
-      await writeFile(htmlFilePath, html)
+      await writeFile(htmlFilePath, indexHtml)
     } catch(e) {
       console.log(`error write html file: ${e.message}`);
     }
 
+    const pdfFileName = `pdf-audit-${uniqueSuffix()}.pdf`
     try {
-      await exec(`pagedjs-cli ${htmlFileName} -o result.pdf`)
+      await exec(`pagedjs-cli ${htmlFileName} -o temp/uploads/${pdfFileName}`)
     } catch(e) {
       console.log(`error generation pdf: ${e.message}`);
     }
